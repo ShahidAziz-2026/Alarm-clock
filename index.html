@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Khairandaish — Alarm Clock</title>
+
+  <!-- ================================================
+       Open Graph / Facebook Preview Meta Tags
+       Replace the content values below with your own:
+         - og:url    → your GitHub Pages URL
+         - og:image  → full URL to preview.png (must be absolute)
+  ================================================ -->
+  <meta property="og:title"       content="Khairandaish — Alarm Clock" />
+  <meta property="og:description" content="A sleek retro-digital alarm clock. Set alarms, pick sounds, and never miss a moment. Runs entirely in your browser — no install needed." />
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://ShahidAziz-2026.github.io/Alarm-clock/" />
+  <meta property="og:image"       content="https://ShahidAziz-2026.github.io/Alarm-clock/preview.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height"content="630" />
+  <meta name="twitter:card"       content="summary_large_image" />
+
+  <!-- Google Fonts: Share Tech Mono (display) + Barlow (UI) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600&display=swap" rel="stylesheet" />
+
+  <style>
+    /* =============================================
+       CSS CUSTOM PROPERTIES — Change colours here
+    ============================================= */
+    :root {
+      --bg:          #0a0c0f;
+      --surface:     #111418;
+      --surface2:    #181c22;
+      --border:      #2a2f3a;
+      --accent:      #00e5b0;   /* neon teal   */
+      --accent2:     #ff4f6d;   /* alarm red   */
+      --accent3:     #ffd166;   /* warm amber  */
+      --text:        #e8eaf0;
+      --muted:       #5a6070;
+      --digit-glow:  0 0 12px #00e5b088, 0 0 30px #00e5b044;
+      --alarm-glow:  0 0 12px #ff4f6d88, 0 0 30px #ff4f6d44;
+      --font-mono:   'Share Tech Mono', monospace;
+      --font-ui:     'Barlow', sans-serif;
+    }
+
+    /* ---- Reset ---- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-ui);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px 40px;
+      /* subtle scanline texture */
+      background-image:
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0,229,176,0.015) 2px,
+          rgba(0,229,176,0.015) 4px
+        );
+    }
+
+    /* ---- App header ---- */
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+      letter-spacing: 0.25em;
+    }
+    header h1 {
+      font-family: var(--font-mono);
+      font-size: clamp(1.4rem, 4vw, 2.2rem);
+      color: var(--accent);
+      text-shadow: var(--digit-glow);
+    }
+    header p {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 4px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+    }
+
+    /* ---- Card shell ---- */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 8px 48px rgba(0,0,0,0.6);
+    }
+
+    /* ---- Live clock display ---- */
+    #live-clock {
+      font-family: var(--font-mono);
+      font-size: clamp(3rem, 14vw, 5.5rem);
+      text-align: center;
+      color: var(--accent);
+      text-shadow: var(--digit-glow);
+      letter-spacing: 0.05em;
+      line-height: 1;
+      margin-bottom: 6px;
+      /* subtle blink-separator animation */
+      animation: none;
+    }
+    #live-clock .sep {
+      animation: blink 1s step-end infinite;
+      display: inline-block;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    #live-date {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-align: center;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+    }
+
+    /* ---- Divider ---- */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 24px 0;
+    }
+
+    /* ---- Section labels ---- */
+    .section-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    /* ---- Alarm time picker row ---- */
+    .alarm-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .alarm-row input[type="time"] {
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: 1.6rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      /* Remove default browser chrome on time input */
+      -webkit-appearance: none;
+    }
+    .alarm-row input[type="time"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0,229,176,0.15);
+    }
+
+    /* ---- Label input ---- */
+    .label-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .label-row input[type="text"] {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      padding: 10px 14px;
+      font-family: var(--font-ui);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .label-row input[type="text"]:focus {
+      border-color: var(--accent3);
+      box-shadow: 0 0 0 3px rgba(255,209,102,0.12);
+    }
+    .label-row input::placeholder { color: var(--muted); }
+
+    /* ---- Sound selector ---- */
+    .sound-row {
+      margin-bottom: 20px;
+    }
+    .sound-row select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      padding: 10px 14px;
+      font-family: var(--font-ui);
+      font-size: 0.88rem;
+      outline: none;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235a6070' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      transition: border-color 0.2s;
+    }
+    .sound-row select:focus { border-color: var(--accent); }
+
+    /* ---- Repeat day chips ---- */
+    .repeat-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .day-chip {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 5px 9px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .day-chip.active {
+      background: rgba(0,229,176,0.12);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ---- Buttons ---- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      font-family: var(--font-ui);
+      font-size: 0.88rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      transition: transform 0.1s, box-shadow 0.2s, background 0.2s;
+    }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+      box-shadow: 0 0 16px rgba(0,229,176,0.3);
+      width: 100%;
+    }
+    .btn-primary:hover { box-shadow: 0 0 28px rgba(0,229,176,0.5); }
+
+    .btn-danger {
+      background: transparent;
+      border: 1px solid var(--accent2);
+      color: var(--accent2);
+      padding: 6px 12px;
+      font-size: 0.75rem;
+    }
+    .btn-danger:hover {
+      background: rgba(255,79,109,0.1);
+    }
+
+    .btn-snooze {
+      background: var(--accent3);
+      color: #000;
+      flex: 1;
+      box-shadow: 0 0 16px rgba(255,209,102,0.3);
+    }
+    .btn-dismiss {
+      background: var(--accent2);
+      color: #fff;
+      flex: 1;
+      box-shadow: 0 0 16px rgba(255,79,109,0.3);
+    }
+
+    /* ---- Alarm list ---- */
+    #alarm-list { margin-top: 4px; }
+
+    .alarm-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 8px;
+      transition: border-color 0.2s;
+      gap: 10px;
+    }
+    .alarm-item.active-alarm {
+      border-color: var(--accent2);
+      box-shadow: var(--alarm-glow);
+      animation: alarm-pulse 0.6s ease-in-out infinite alternate;
+    }
+    @keyframes alarm-pulse {
+      from { box-shadow: 0 0 8px #ff4f6d44; }
+      to   { box-shadow: 0 0 28px #ff4f6daa; }
+    }
+
+    .alarm-item-left { display: flex; flex-direction: column; gap: 2px; }
+    .alarm-time {
+      font-family: var(--font-mono);
+      font-size: 1.3rem;
+      color: var(--text);
+    }
+    .alarm-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+    .alarm-days {
+      font-size: 0.65rem;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+      margin-top: 2px;
+    }
+
+    /* Toggle switch */
+    .toggle {
+      position: relative;
+      width: 42px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--border);
+      border-radius: 22px;
+      cursor: pointer;
+      transition: background 0.25s;
+    }
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      top: 3px;
+      background: var(--muted);
+      border-radius: 50%;
+      transition: transform 0.25s, background 0.25s;
+    }
+    .toggle input:checked + .toggle-slider { background: rgba(0,229,176,0.25); }
+    .toggle input:checked + .toggle-slider::before {
+      transform: translateX(20px);
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
+    }
+
+    /* ---- Firing alarm modal ---- */
+    #alarm-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(6px);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+    }
+    #alarm-modal.open { display: flex; }
+    .modal-box {
+      background: var(--surface);
+      border: 1px solid var(--accent2);
+      border-radius: 20px;
+      padding: 40px 32px;
+      text-align: center;
+      max-width: 340px;
+      width: 92%;
+      box-shadow: 0 0 60px rgba(255,79,109,0.3);
+      animation: modal-in 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes modal-in {
+      from { transform: scale(0.7); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .modal-icon {
+      font-size: 3rem;
+      animation: ring 0.5s ease-in-out infinite alternate;
+    }
+    @keyframes ring {
+      from { transform: rotate(-18deg); }
+      to   { transform: rotate(18deg); }
+    }
+    .modal-title {
+      font-family: var(--font-mono);
+      font-size: 1.5rem;
+      color: var(--accent2);
+      text-shadow: var(--alarm-glow);
+      margin: 14px 0 6px;
+    }
+    .modal-label {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    /* ---- Empty state ---- */
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.82rem;
+      padding: 20px 0;
+      letter-spacing: 0.08em;
+    }
+
+    /* ---- Permission banner ---- */
+    #notif-banner {
+      background: rgba(255,209,102,0.08);
+      border: 1px solid rgba(255,209,102,0.3);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.78rem;
+      color: var(--accent3);
+      margin-bottom: 16px;
+      display: none;
+      cursor: pointer;
+    }
+    #notif-banner.show { display: block; }
+
+    /* ---- Footer ---- */
+    footer {
+      margin-top: 24px;
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.15em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    /* ---- Responsive tweak ---- */
+    @media (max-width: 380px) {
+      .card { padding: 24px 16px; }
+      #live-clock { font-size: 3rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ==================== APP HEADER ==================== -->
+<header>
+  <h1>Khairandaish</h1>
+  <p>Personal Alarm Clock</p>
+</header>
+
+<!-- ==================== MAIN CARD ==================== -->
+<div class="card">
+
+  <!-- Notification permission nudge (shown only when needed) -->
+  <div id="notif-banner">
+    🔔 Enable browser notifications so alarms work even when this tab is in the background. Click to allow.
+  </div>
+
+  <!-- ---- Live Clock ---- -->
+  <div id="live-clock">
+    <span id="clk-h">00</span><span class="sep">:</span><span id="clk-m">00</span><span class="sep">:</span><span id="clk-s">00</span>
+  </div>
+  <div id="live-date">Loading…</div>
+
+  <div class="divider"></div>
+
+  <!-- ========== SET ALARM SECTION ========== -->
+  <p class="section-label">⏰ &nbsp;Set New Alarm</p>
+
+  <!-- Time picker -->
+  <div class="alarm-row">
+    <input type="time" id="alarm-time" value="07:00" aria-label="Alarm time" />
+  </div>
+
+  <!-- Optional label -->
+  <div class="label-row">
+    <input type="text" id="alarm-label" placeholder="Label (e.g. Wake up, Meeting…)" maxlength="40" aria-label="Alarm label" />
+  </div>
+
+  <!-- Sound selector -->
+  <div class="sound-row">
+    <p class="section-label" style="margin-bottom:8px;">🔊 &nbsp;Alarm Sound</p>
+    <select id="alarm-sound" aria-label="Alarm sound">
+      <option value="beep">Classic Beep</option>
+      <option value="chime">Soft Chime</option>
+      <option value="siren">Alert Siren</option>
+      <option value="digital">Digital Pulse</option>
+    </select>
+  </div>
+
+  <!-- Repeat days -->
+  <div>
+    <p class="section-label">🔁 &nbsp;Repeat</p>
+    <div class="repeat-row" id="day-chips">
+      <span class="day-chip" data-day="0">Su</span>
+      <span class="day-chip active" data-day="1">Mo</span>
+      <span class="day-chip active" data-day="2">Tu</span>
+      <span class="day-chip active" data-day="3">We</span>
+      <span class="day-chip active" data-day="4">Th</span>
+      <span class="day-chip active" data-day="5">Fr</span>
+      <span class="day-chip" data-day="6">Sa</span>
+    </div>
+  </div>
+
+  <!-- Add button -->
+  <button class="btn btn-primary" id="add-alarm-btn" aria-label="Add alarm">
+    + Add Alarm
+  </button>
+
+  <div class="divider"></div>
+
+  <!-- ========== ALARM LIST ========== -->
+  <p class="section-label">📋 &nbsp;Your Alarms</p>
+  <div id="alarm-list">
+    <p class="empty">No alarms set yet.</p>
+  </div>
+
+</div><!-- /card -->
+
+<footer>
+  Runs entirely in your browser &nbsp;·&nbsp; No data sent anywhere
+  &nbsp;·&nbsp;
+  <a id="download-link" href="#" style="
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      border-bottom: 1px solid rgba(0,229,176,0.35);
+      padding-bottom: 1px;
+      transition: border-color 0.2s;
+    "
+    title="Download alarm clock as a single HTML file"
+  >⬇ Download</a>
+</footer>
+
+<!-- ==================== FIRING ALARM MODAL ==================== -->
+<div id="alarm-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal-box">
+    <div class="modal-icon">🔔</div>
+    <div class="modal-title" id="modal-title">ALARM!</div>
+    <div class="modal-label" id="modal-label">Time to wake up</div>
+    <div class="modal-actions">
+      <button class="btn btn-snooze" id="snooze-btn">😴 Snooze 5 min</button>
+      <button class="btn btn-dismiss" id="dismiss-btn">✓ Dismiss</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== JAVASCRIPT ==================== -->
+<script>
+/* ================================================================
+   Khairandaish Alarm Clock — main.js (embedded)
+   Author: generated by Claude / Anthropic
+   Licence: MIT — free to use, modify, and share
+   ================================================================
+
+   Architecture overview:
+   ┌──────────────────────────────────────────────┐
+   │  alarms[]          Array of alarm objects     │
+   │  AudioEngine       Tone generation via Web    │
+   │                    Audio API (no file needed) │
+   │  Tick loop         setInterval every 1 sec    │
+   │  UI helpers        render, toast, modal       │
+   └──────────────────────────────────────────────┘
+*/
+
+/* ----------------------------------------------------------------
+   1. STATE
+   Alarm object shape:
+   {
+     id:       string  — unique identifier
+     time:     string  — "HH:MM" (24-hour)
+     label:    string  — user-supplied text
+     sound:    string  — key into SOUNDS map
+     days:     number[] — 0=Sun … 6=Sat (empty = once)
+     enabled:  boolean
+     fired:    string  — last date string alarm was fired (dedup)
+   }
+---------------------------------------------------------------- */
+let alarms = [];        // active alarm list
+let firingAlarm = null; // alarm currently sounding
+
+/* ----------------------------------------------------------------
+   2. PERSISTENCE  (localStorage)
+   Keys:  "chrono_alarms"
+---------------------------------------------------------------- */
+/** Save alarms array to localStorage */
+function saveAlarms() {
+  try {
+    localStorage.setItem('chrono_alarms', JSON.stringify(alarms));
+  } catch(e) { /* storage blocked — silently ignore */ }
+}
+
+/** Load alarms from localStorage on startup */
+function loadAlarms() {
+  try {
+    const raw = localStorage.getItem('chrono_alarms');
+    if (raw) alarms = JSON.parse(raw);
+  } catch(e) { alarms = []; }
+}
+
+/* ----------------------------------------------------------------
+   3. AUDIO ENGINE
+   All sounds are synthesised via Web Audio API — no external
+   audio files needed, works fully offline.
+---------------------------------------------------------------- */
+let audioCtx = null;
+
+/** Lazily create AudioContext (required by browsers after user gesture) */
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+/**
+ * Play a repeating tone pattern.
+ * @param {string} type - one of: beep | chime | siren | digital
+ * Returns a stop() function to silence it.
+ */
+function playSound(type) {
+  const ctx = getAudioCtx();
+  let stopFlag = false;
+
+  /* Each sound is a function that plays one cycle and schedules next */
+  const sounds = {
+    beep() {
+      if (stopFlag) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = 'square';
+      gain.gain.setValueAtTime(0.4, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.2);
+      setTimeout(() => sounds.beep(), 400);
+    },
+    chime() {
+      if (stopFlag) return;
+      [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = 'sine';
+        const t = ctx.currentTime + i * 0.22;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.35, t + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+        osc.start(t);
+        osc.stop(t + 0.75);
+      });
+      setTimeout(() => sounds.chime(), 1600);
+    },
+    siren() {
+      if (stopFlag) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 400;
+      osc.frequency.linearRampToValueAtTime(900, ctx.currentTime + 0.4);
+      osc.frequency.linearRampToValueAtTime(400, ctx.currentTime + 0.8);
+      osc.type = 'sawtooth';
+      gain.gain.setValueAtTime(0.35, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.85);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.9);
+      setTimeout(() => sounds.siren(), 900);
+    },
+    digital() {
+      if (stopFlag) return;
+      [0, 100, 200].forEach(delay => {
+        setTimeout(() => {
+          if (stopFlag) return;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.frequency.value = 1200;
+          osc.type = 'square';
+          gain.gain.setValueAtTime(0.25, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.09);
+        }, delay);
+      });
+      setTimeout(() => sounds.digital(), 600);
+    }
+  };
+
+  // Start the selected sound pattern
+  (sounds[type] || sounds.beep)();
+
+  // Return a stopper function so callers can silence it
+  return { stop() { stopFlag = true; } };
+}
+
+/* ----------------------------------------------------------------
+   4. LIVE CLOCK TICK
+   Updates every second; also checks if any alarm should fire.
+---------------------------------------------------------------- */
+const clkH  = document.getElementById('clk-h');
+const clkM  = document.getElementById('clk-m');
+const clkS  = document.getElementById('clk-s');
+const clkDate = document.getElementById('live-date');
+
+const DAY_NAMES  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTH_NAMES= ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/** Pad a number to 2 digits */
+const pad = n => String(n).padStart(2,'0');
+
+let soundHandle = null; // currently playing alarm sound handle
+
+function tick() {
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+  const day = now.getDay();
+
+  // Update clock display
+  clkH.textContent  = pad(h);
+  clkM.textContent  = pad(m);
+  clkS.textContent  = pad(s);
+  clkDate.textContent =
+    `${DAY_NAMES[day]}, ${MONTH_NAMES[now.getMonth()]} ${now.getDate()} ${now.getFullYear()}`;
+
+  // Only check alarms at the top of each minute (s === 0)
+  if (s !== 0) return;
+
+  const timeStr  = `${pad(h)}:${pad(m)}`;
+  const dateStr  = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+
+  alarms.forEach(alarm => {
+    if (!alarm.enabled) return;
+    if (alarm.time !== timeStr) return;
+
+    // Days check: if days array has entries, only fire on matching days
+    if (alarm.days.length > 0 && !alarm.days.includes(day)) return;
+
+    // Dedup: don't fire the same alarm twice in the same minute
+    if (alarm.fired === dateStr + '-' + timeStr) return;
+
+    alarm.fired = dateStr + '-' + timeStr;
+
+    // For one-time alarms (no repeat days), disable after firing
+    if (alarm.days.length === 0) {
+      alarm.enabled = false;
+    }
+
+    saveAlarms();
+    renderAlarms();
+    fireAlarm(alarm);
+  });
+}
+
+setInterval(tick, 1000);
+tick(); // run immediately on load
+
+/* ----------------------------------------------------------------
+   5. FIRE ALARM — open modal + play sound + send notification
+---------------------------------------------------------------- */
+const modal      = document.getElementById('alarm-modal');
+const modalTitle = document.getElementById('modal-title');
+const modalLabel = document.getElementById('modal-label');
+const snoozeBtn  = document.getElementById('snooze-btn');
+const dismissBtn = document.getElementById('dismiss-btn');
+
+/**
+ * Display the alarm-firing modal and start audio.
+ * @param {object} alarm
+ */
+function fireAlarm(alarm) {
+  firingAlarm = alarm;
+
+  // Populate modal text
+  modalTitle.textContent = alarm.time;
+  modalLabel.textContent = alarm.label || 'Alarm!';
+
+  // Open modal
+  modal.classList.add('open');
+
+  // Start sound
+  if (soundHandle) soundHandle.stop();
+  soundHandle = playSound(alarm.sound);
+
+  // Browser notification (fires even if tab is hidden)
+  if (Notification.permission === 'granted') {
+    new Notification(`⏰ ${alarm.time} — ${alarm.label || 'Alarm!'}`, {
+      body: 'Your Khairandaish alarm is ringing.',
+      icon: 'preview.png'  // shown in OS notification
+    });
+  }
+
+  // Highlight matching card in list
+  renderAlarms();
+}
+
+/** Dismiss the currently firing alarm */
+function dismissAlarm() {
+  if (soundHandle) { soundHandle.stop(); soundHandle = null; }
+  modal.classList.remove('open');
+  firingAlarm = null;
+  renderAlarms();
+}
+
+/** Snooze: dismiss now, re-fire in 5 minutes */
+function snoozeAlarm() {
+  if (!firingAlarm) return;
+  const snoozedAlarm = { ...firingAlarm }; // shallow copy
+
+  // Calculate snooze time (+5 min)
+  const [hh, mm] = snoozedAlarm.time.split(':').map(Number);
+  const snoozeDate = new Date();
+  snoozeDate.setHours(hh, mm + 5, 0, 0);
+  snoozedAlarm.time  = `${pad(snoozeDate.getHours())}:${pad(snoozeDate.getMinutes())}`;
+  snoozedAlarm.fired = ''; // reset dedup
+  snoozedAlarm.days  = []; // one-time snooze
+  snoozedAlarm.label = `💤 ${snoozedAlarm.label || 'Alarm'} (snoozed)`;
+  snoozedAlarm.id    = Date.now().toString();
+
+  alarms.push(snoozedAlarm);
+  saveAlarms();
+  renderAlarms();
+  dismissAlarm();
+}
+
+snoozeBtn.addEventListener('click', snoozeAlarm);
+dismissBtn.addEventListener('click', dismissAlarm);
+
+// Close modal on backdrop click
+modal.addEventListener('click', e => {
+  if (e.target === modal) dismissAlarm();
+});
+
+/* ----------------------------------------------------------------
+   6. ADD ALARM
+---------------------------------------------------------------- */
+const addBtn      = document.getElementById('add-alarm-btn');
+const timeInput   = document.getElementById('alarm-time');
+const labelInput  = document.getElementById('alarm-label');
+const soundSelect = document.getElementById('alarm-sound');
+const dayChips    = document.querySelectorAll('.day-chip');
+
+/** Collect selected repeat days from chips */
+function getSelectedDays() {
+  return [...dayChips]
+    .filter(c => c.classList.contains('active'))
+    .map(c => parseInt(c.dataset.day));
+}
+
+/** Toggle chip active state on click */
+dayChips.forEach(chip => {
+  chip.addEventListener('click', () => chip.classList.toggle('active'));
+});
+
+addBtn.addEventListener('click', () => {
+  // Unlock AudioContext on first user gesture (browser requirement)
+  getAudioCtx();
+
+  const time = timeInput.value;
+  if (!time) { showToast('Please select a time first.'); return; }
+
+  const alarm = {
+    id:      Date.now().toString(),
+    time,
+    label:   labelInput.value.trim(),
+    sound:   soundSelect.value,
+    days:    getSelectedDays(),
+    enabled: true,
+    fired:   ''
+  };
+
+  alarms.push(alarm);
+  saveAlarms();
+  renderAlarms();
+
+  // Reset inputs
+  labelInput.value = '';
+  showToast('Alarm set for ' + formatTime(time) + ' ✓');
+});
+
+/* ----------------------------------------------------------------
+   7. RENDER ALARM LIST
+---------------------------------------------------------------- */
+const alarmList = document.getElementById('alarm-list');
+
+/** Convert "HH:MM" 24h to human-friendly 12h format */
+function formatTime(t) {
+  const [h, m] = t.split(':').map(Number);
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const h12    = h % 12 || 12;
+  return `${h12}:${pad(m)} ${suffix}`;
+}
+
+const SHORT_DAYS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+/** Rebuild the alarm list HTML */
+function renderAlarms() {
+  if (alarms.length === 0) {
+    alarmList.innerHTML = '<p class="empty">No alarms set yet.</p>';
+    return;
+  }
+
+  alarmList.innerHTML = alarms.map(alarm => {
+    const isFiring = firingAlarm && firingAlarm.id === alarm.id;
+    const daysText = alarm.days.length
+      ? alarm.days.map(d => SHORT_DAYS[d]).join(' ')
+      : 'Once';
+
+    return `
+    <div class="alarm-item ${isFiring ? 'active-alarm' : ''}" data-id="${alarm.id}">
+      <div class="alarm-item-left">
+        <span class="alarm-time">${formatTime(alarm.time)}</span>
+        <span class="alarm-label">${alarm.label || '—'}</span>
+        <span class="alarm-days">${daysText}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <!-- Enable / disable toggle -->
+        <label class="toggle" aria-label="Toggle alarm ${formatTime(alarm.time)}">
+          <input type="checkbox" ${alarm.enabled ? 'checked' : ''}
+                 onchange="toggleAlarm('${alarm.id}', this.checked)" />
+          <span class="toggle-slider"></span>
+        </label>
+        <!-- Delete button -->
+        <button class="btn btn-danger" onclick="deleteAlarm('${alarm.id}')"
+                aria-label="Delete alarm">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ----------------------------------------------------------------
+   8. TOGGLE & DELETE
+---------------------------------------------------------------- */
+/** Enable or disable a specific alarm */
+function toggleAlarm(id, enabled) {
+  const alarm = alarms.find(a => a.id === id);
+  if (alarm) { alarm.enabled = enabled; saveAlarms(); }
+}
+
+/** Remove an alarm from the list */
+function deleteAlarm(id) {
+  alarms = alarms.filter(a => a.id !== id);
+  // If the deleted alarm is currently firing, dismiss it
+  if (firingAlarm && firingAlarm.id === id) dismissAlarm();
+  saveAlarms();
+  renderAlarms();
+}
+
+/* ----------------------------------------------------------------
+   9. BROWSER NOTIFICATIONS
+---------------------------------------------------------------- */
+const notifBanner = document.getElementById('notif-banner');
+
+/** Request notification permission and hide banner on grant */
+async function requestNotifications() {
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') notifBanner.classList.remove('show');
+}
+
+// Show banner if permission not yet granted
+if ('Notification' in window && Notification.permission === 'default') {
+  notifBanner.classList.add('show');
+  notifBanner.addEventListener('click', requestNotifications);
+}
+
+/* ----------------------------------------------------------------
+   10. TOAST NOTIFICATION (small in-app message)
+---------------------------------------------------------------- */
+let toastEl = null;
+
+function showToast(msg) {
+  if (toastEl) toastEl.remove();
+  toastEl = document.createElement('div');
+  toastEl.textContent = msg;
+  Object.assign(toastEl.style, {
+    position: 'fixed',
+    bottom: '24px',
+    left:   '50%',
+    transform: 'translateX(-50%)',
+    background: 'var(--accent)',
+    color: '#000',
+    padding: '10px 20px',
+    borderRadius: '8px',
+    fontSize: '0.82rem',
+    fontFamily: 'var(--font-ui)',
+    fontWeight: '600',
+    letterSpacing: '0.05em',
+    zIndex: '1000',
+    boxShadow: '0 0 20px rgba(0,229,176,0.4)',
+    animation: 'none',
+    whiteSpace: 'nowrap'
+  });
+  document.body.appendChild(toastEl);
+  setTimeout(() => { if (toastEl) toastEl.remove(); }, 2600);
+}
+
+/* ----------------------------------------------------------------
+   11. INIT
+---------------------------------------------------------------- */
+loadAlarms();
+renderAlarms();
+
+/* ----------------------------------------------------------------
+   12. SELF-DOWNLOAD
+   When the user clicks "Download", we grab the full HTML source
+   of this very page, create a Blob URL, and trigger a save-as.
+   The downloaded file works exactly like the original — open it
+   in any browser, no internet required.
+---------------------------------------------------------------- */
+document.getElementById('download-link').addEventListener('click', function(e) {
+  e.preventDefault();
+
+  // Grab the complete HTML of the current document
+  const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+
+  // Wrap in a Blob so the browser treats it as a file download
+  const blob = new Blob([html], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+
+  // Create a temporary <a> and click it to trigger Save As
+  const a = document.createElement('a');
+  a.href     = url;
+  a.download = 'khairandaish-alarm-clock.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  // Release the object URL after a short delay
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+  showToast('Downloading khairandaish-alarm-clock.html …');
+});
+</script>
+</body>
+</html>
